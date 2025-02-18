@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Suivi des Consommations Premium</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #ff4757;
+            --background-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --modal-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 30px;
+            background: var(--background-gradient);
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            font-size: 2.5em;
+            letter-spacing: -1px;
+        }
+
+        .form-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        input {
+            flex: 1;
+            padding: 14px 20px;
+            border: 2px solid #e0e6ed;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+            background: white;
+        }
+
+        button {
+            padding: 14px 28px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #357abd;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .total-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 25px 0;
+            text-align: center;
+            box-shadow: var(--modal-shadow);
+        }
+
+        .total-amount {
+            font-size: 3em;
+            font-weight: 800;
+            margin: 10px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            overflow: hidden;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            padding: 18px 24px;
+            text-align: left;
+        }
+
+        thead tr {
+            background: linear-gradient(135deg, var(--primary-color), #63a4ff);
+            color: white;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #f0f4f8;
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8f9fd;
+        }
+
+        tbody tr:hover {
+            background-color: #f1f4ff;
+            transform: translateX(8px);
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .actions button {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            background: #e4e9f2;
+            color: #2c3e50;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        .actions button:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .chart-container {
+            margin-top: 40px;
+            padding: 25px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: var(--modal-shadow);
+        }
+
+        /* Styles des modales */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            animation: modalFade 0.3s ease;
+        }
+
+        @keyframes modalFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            position: relative;
+            background: white;
+            max-width: 600px;
+            margin: 80px auto;
+            padding: 35px;
+            border-radius: 20px;
+            box-shadow: var(--modal-shadow);
+            transform: translateY(-20px);
+            animation: modalSlide 0.3s ease;
+        }
+
+        @keyframes modalSlide {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f4f8;
+        }
+
+        .modal-header h2 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 1.8em;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            margin: 8px 0;
+            background: #f8fafc;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            font-size: 0.9em;
+        }
+
+        .history-item:hover {
+            transform: translateX(3px);
+            background: #f1f4ff;
+        }
+
+        .history-item span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .history-item button {
+            padding: 4px 8px;
+            font-size: 0.8em;
+            background: transparent;
+            color: #666;
+        }
+
+        .history-item button:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .date-picker {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .day-details-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin: 8px 0;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .day-details-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: var(--modal-shadow);
+            z-index: 1001;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .day-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .day-details-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .day-total {
+            font-weight: bold;
+            color: var(--secondary-color);
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(3px);
+            z-index: 1000;
+        }
+
+        .close-button {
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background: #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Suivi des Consommations Premium</h1>
+        
+        <div class="form-group">
+            <button onclick="openLabelModal()" style="background: #4CAF50;">
+                🏷️ Nouveau Libellé
+            </button>
+        </div>
+
+        <div class="total-box">
+            <div>Total Général des Dépenses</div>
+            <div class="total-amount" id="totalAmount">0 UM</div>
+        </div>
+
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Libellé</th>
+                    <th>Total</th>
+                    <th>Dernière Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+            </tbody>
+        </table>
+
+        <div class="chart-container">
+            <canvas id="labelChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="dateChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Modal Gestion Libellé -->
+    <div class="modal" id="labelModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎯 Gestion du Libellé</h2>
+            </div>
+            
+            <input type="text" id="editLabelName" 
+                   placeholder="Nom du libellé"
+                   style="width:100%; padding:16px; margin-bottom:25px; font-size:1.1em;">
+
+            <h3 style="color: #4a90e2; margin-bottom:15px; font-size:1.1em;">📅 Historique des dates</h3>
+            <div id="historyList"></div>
+
+            <div class="date-picker">
+                <input type="date" id="newDate">
+                <input type="number" id="newAmount" placeholder="Montant">
+                <button onclick="addDateToLabel()" style="background: #4CAF50;">➕ Ajouter</button>
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="saveLabel()" style="background: #4a90e2;">💾 Enregistrer</button>
+                <button onclick="closeModal()" style="background: #ff4757;">❌ Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="dayOverlay"></div>
+    <div class="day-details-modal" id="dayModal">
+        <div class="day-details-header">
+            <h2>📅 Détails du jour</h2>
+            <div class="close-button" onclick="closeDayModal()">×</div>
+        </div>
+        <div id="dayDetailsContent"></div>
+    </div>
+
+    </div>
+
+    <script>
+        let labelChart = null;
+        let dateChart = null;
+        let labels = JSON.parse(localStorage.getItem('labelData')) || [];
+        let currentLabelIndex = null;
+
+        function updateTotal() {
+            const total = labels.reduce((sum, label) => sum + label.total, 0);
+            document.getElementById('totalAmount').textContent = `${total.toFixed(2)} UM`;
+        }
+
+        function saveData() {
+            localStorage.setItem('labelData', JSON.stringify(labels));
+            updateCharts();
+            updateTotal();
+        }
+
+        function openLabelModal(index = null) {
+            currentLabelIndex = index;
+            const modal = document.getElementById('labelModal');
+            modal.style.display = 'block';
+            
+            if(index !== null) {
+                const label = labels[index];
+                document.getElementById('editLabelName').value = label.name;
+                updateHistoryList(label.history);
+            } else {
+                document.getElementById('editLabelName').value = '';
+                document.getElementById('historyList').innerHTML = '';
+            }
+        }
+
+        function closeModal() {
+    document.getElementById('labelModal').style.display = 'none';
+    currentLabelIndex = null;
+    document.getElementById('dayOverlay').style.display = 'none'; // Ajout
+}
+
+        function updateHistoryList(history) {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            
+            history.forEach((entry, index) => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <span>
+                        <small>📅 ${new Date(entry.date).toLocaleDateString('fr-FR')}</small>
+                        <small>💰 ${entry.amount.toFixed(2)} UM</small>
+                    </span>
+                    <div>
+                        <button onclick="editDate(${index})">✏️</button>
+                        <button onclick="deleteDate(${index})">🗑️</button>
+                    </div>
+                `;
+                historyList.appendChild(div);
+            });
+        }
+
+        function addDateToLabel() {
+            const date = document.getElementById('newDate').value;
+            const amount = parseFloat(document.getElementById('newAmount').value);
+            
+            if(date && !isNaN(amount)) {
+                const label = currentLabelIndex !== null ? labels[currentLabelIndex] : {
+                    name: '',
+                    total: 0,
+                    history: [],
+                    lastDate: ''
+                };
+
+                label.history.push({ date, amount });
+                label.total += amount;
+                label.lastDate = date;
+
+                if(currentLabelIndex === null) {
+    const labelName = document.getElementById('editLabelName').value.trim();
+    if(!labelName) {
+        alert('Veuillez entrer un nom de libellé !');
+        return;
+    }
+    label.name = labelName;
+    labels.push(label);
+    currentLabelIndex = labels.length - 1;
+}
+
+                updateHistoryList(label.history);
+                document.getElementById('newDate').value = '';
+                document.getElementById('newAmount').value = '';
+                saveData();
+            }
+        }
+
+        function editDate(index) {
+            const label = labels[currentLabelIndex];
+            const entry = label.history[index];
+            const newAmount = parseFloat(prompt('Nouveau montant:', entry.amount));
+            
+            if(!isNaN(newAmount)) {
+                label.total += (newAmount - entry.amount);
+                entry.amount = newAmount;
+                updateHistoryList(label.history);
+                saveData();
+            }
+        }
+
+        function deleteDate(index) {
+            if(confirm('Supprimer cette entrée?')) {
+                const label = labels[currentLabelIndex];
+                label.total -= label.history[index].amount;
+                label.history.splice(index, 1);
+                if(label.history.length > 0) {
+                    label.lastDate = label.history.slice(-1)[0].date;
+                }
+                updateHistoryList(label.history);
+                saveData();
+            }
+        }
+
+        function saveLabel() {
+            const name = document.getElementById('editLabelName').value.trim();
+            if(name) {
+                labels[currentLabelIndex].name = name;
+                updateTable();
+                saveData();
+                closeModal();
+            }
+        }
+
+        function deleteLabel(index) {
+            if(confirm('Supprimer définitivement ce libellé?')) {
+                labels.splice(index, 1);
+                updateTable();
+                saveData();
+            }
+        }
+
+        function showDayDetails(date) {
+            const modal = document.getElementById('dayModal');
+            const title = document.getElementById('dayModalTitle');
+            const list = document.getElementById('dayDetailsList');
+            
+            title.innerHTML = `📅 ${new Date(date).toLocaleDateString('fr-FR')}`;
+            list.innerHTML = '';
+            
+            labels.forEach(label => {
+                label.history.forEach(entry => {
+                    if(entry.date === date) {
+                        const div = document.createElement('div');
+                        div.className = 'day-details-item';
+                        div.innerHTML = `
+                            <span>🏷️ ${label.name}</span>
+                            <span>💰 ${entry.amount.toFixed(2)} UM</span>
+                        `;
+                        list.appendChild(div);
+                    }
+                });
+            });
+            
+            modal.style.display = 'block';
+        }
+
+       
+
+        function updateTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            labels.forEach((label, index) => {
+                const row = `
+                    <tr>
+                        <td>🏷️ ${label.name}</td>
+                        <td>💰 ${label.total.toFixed(2)} UM</td>
+                        <td>📅 ${label.lastDate ? new Date(label.lastDate).toLocaleDateString('fr-FR') : '-'}</td>
+                        <td class="actions">
+                            <button onclick="openLabelModal(${index})">⚙️ Gérer</button>
+                            <button onclick="deleteLabel(${index})">🗑️ Supprimer</button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function updateCharts() {
+    if(labelChart) labelChart.destroy();
+    if(dateChart) dateChart.destroy();
+
+    // Group by label pour le premier graphique
+    const labelData = labels.reduce((acc, label) => {
+        acc[label.name] = label.total;
+        return acc;
+    }, {});
+
+    // Création du graphique des libellés
+    const labelCtx = document.getElementById('labelChart').getContext('2d');
+    labelChart = new Chart(labelCtx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(labelData),
+            datasets: [{
+                label: 'Consommation par libellé',
+                data: Object.values(labelData),
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: '#4a90e2',
+                borderWidth: 2,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { 
+                    display: true, 
+                    text: 'Répartition par Libellé', 
+                    font: { size: 18 } 
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Montant (UM)'
+                    }
+                }
+            }
+        }
+    });
+
+    // Group by date avec détails
+    const dateData = labels.reduce((acc, label) => {
+        label.history.forEach(entry => {
+            if(!acc[entry.date]) {
+                acc[entry.date] = {
+                    total: 0,
+                    details: []
+                };
+            }
+            acc[entry.date].total += entry.amount;
+            acc[entry.date].details.push({
+                label: label.name,
+                amount: entry.amount
+            });
+        });
+        return acc;
+    }, {});
+
+    const sortedDates = Object.keys(dateData).sort();
+
+    // Configuration du graphique des dates
+    const dateCtx = document.getElementById('dateChart').getContext('2d');
+    dateChart = new Chart(dateCtx, {
+        type: 'bar',
+        data: {
+            labels: sortedDates,
+            datasets: [{
+                label: 'Consommation par date',
+                data: sortedDates.map(d => dateData[d].total),
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                borderColor: '#ff4757',
+                borderWidth: 2,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: { 
+                    display: true, 
+                    text: 'Historique par Date', 
+                    font: { size: 18 } 
+                }
+            },
+            scales: {
+                x: { 
+                    type: 'time', 
+                    time: { 
+                        unit: 'day',
+                        parser: 'yyyy-MM-dd',
+                        tooltipFormat: 'dd/MM/yyyy'
+                    } 
+                },
+                y: { 
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Montant (UM)'
+                    }
+                }
+            },
+            onClick: (e) => {
+    const elements = dateChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+    if(elements.length > 0) {
+        const clickedDate = sortedDates[elements[0].index];
+        const data = dateData[clickedDate];
+        showDayDetails(clickedDate, data);
+    }
+}
+        }
+    });
+}
+
+function showDayDetails(date, data) {
+    const modal = document.getElementById('dayModal');
+    const overlay = document.getElementById('dayOverlay');
+    const content = document.getElementById('dayDetailsContent');
+    
+    let html = `
+        <div class="day-details-header">
+            <h3>📅 ${new Date(date).toLocaleDateString('fr-FR')}</h3>
+            <div class="day-total">Total: ${data.total.toFixed(2)} UM</div>
+        </div>
+        <div class="details-list">
+    `;
+    
+    data.details.forEach(item => {
+        html += `
+            <div class="day-details-item">
+                <span class="label">🏷️ ${item.label}</span>
+                <span class="amount">${item.amount.toFixed(2)} UM</span>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    content.innerHTML = html;
+    modal.style.display = 'block';
+    overlay.style.display = 'block';
+}
+
+       // Supprimez la fonction dupliquée en bas du script et gardez celle-ci :
+function closeDayModal() {
+    document.getElementById('dayModal').style.display = 'none';
+    document.getElementById('dayOverlay').style.display = 'none';
+}
+
+
+        window.onload = function() {
+    updateTable();
+    updateCharts();
+    updateTotal(); // Ajout de cette ligne
+};
+window.onclick = function(event) {
+    const dayModal = document.getElementById('dayModal');
+    const labelModal = document.getElementById('labelModal');
+    
+    if(event.target === labelModal) {
+        closeModal();
+    }
+    if(event.target === document.getElementById('dayOverlay')) {
+        closeDayModal();
+    }
+};
+       
+    </script>
+</body>
+</html>
